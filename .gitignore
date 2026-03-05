@@ -12,7 +12,7 @@
 /build
 
 # data
-/src/data/*
+/public/games.csv
 
 # misc
 .DS_Store
