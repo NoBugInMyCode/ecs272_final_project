@@ -39,10 +39,6 @@ export default function App() {
     if (loading) return <div style={{ padding: 16 }}>Loading games.csv...</div>
     if (error) return <div style={{ padding: 16 }}>Failed to load CSV: {String(error)}</div>
 
-    console.log("raw length:", raw.length)
-    console.log("filtered length:", filtered.length)
-    console.log("sample raw row:", raw[0])
-
     return (
         <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, padding: 16 }}>
             <ControlsPanel

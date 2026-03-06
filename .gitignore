@@ -12,7 +12,8 @@
 /build
 
 # data
-/public/games.csv
+/public/games_slim.json
+/data_preprocessing/games.json
 
 # misc
 .DS_Store
