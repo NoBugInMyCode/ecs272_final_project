@@ -100,26 +100,65 @@ function parseBoolean(value) {
 }
 
 function parseMaybeArray(value) {
-    if (Array.isArray(value)) return value.filter(Boolean)
+    if (Array.isArray(value)) {
+        return value
+            .map(d => String(d).trim())
+            .filter(Boolean)
+    }
+
+    // 支持 { Action: 123, RPG: 45 } 这种对象
+    if (value && typeof value === "object") {
+        return Object.keys(value)
+            .map(d => String(d).trim())
+            .filter(Boolean)
+    }
 
     if (typeof value === "string") {
         const trimmed = value.trim()
-
         if (!trimmed) return []
+
         if (
-            (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-            (trimmed.startsWith('["') && trimmed.endsWith('"]'))
+            trimmed === "[]" ||
+            trimmed === "{}" ||
+            trimmed.toLowerCase() === "null" ||
+            trimmed.toLowerCase() === "undefined"
         ) {
+            return []
+        }
+
+        // JSON 数组字符串
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
             try {
                 const normalized = trimmed.replace(/'/g, '"')
                 const arr = JSON.parse(normalized)
-                return Array.isArray(arr) ? arr.filter(Boolean) : []
+                if (Array.isArray(arr)) {
+                    return arr
+                        .map(d => String(d).trim())
+                        .filter(Boolean)
+                }
             } catch {
-                // 解析失败时退回普通 split
+                // ignore
+            }
+        }
+
+        // JSON 对象字符串，例如 {"Action":123,"RPG":66}
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                const normalized = trimmed.replace(/'/g, '"')
+                const obj = JSON.parse(normalized)
+                if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+                    return Object.keys(obj)
+                        .map(d => String(d).trim())
+                        .filter(Boolean)
+                }
+            } catch {
+                // ignore
             }
         }
 
         return splitList(trimmed)
+            .map(d => String(d).trim())
+            .filter(Boolean)
     }
 
     return []
@@ -138,11 +177,25 @@ export function useGamesData() {
                 setLoading(true)
                 setError(null)
 
-                const rows = await d3.json("/games_slim.json")
+                const json = await d3.json("/games_slim.json")
                 if (cancelled) return
 
+                let rows = []
+
+                // 支持数组格式
+                if (Array.isArray(json)) {
+                    rows = json
+                }
+                // 支持对象格式：{ "2539430": { ... }, "123": { ... } }
+                else if (json && typeof json === "object") {
+                    rows = Object.entries(json).map(([id, value]) => ({
+                        AppID: id,
+                        ...value,
+                    }))
+                }
+
                 if (!Array.isArray(rows) || rows.length === 0) {
-                    console.warn("games.json is not a non-empty array:", rows)
+                    console.warn("games_slim.json is empty or invalid:", json)
                     setRaw([])
                     setLoading(false)
                     return
@@ -170,7 +223,9 @@ export function useGamesData() {
                     const negative = parseCleanNumber(rawNegative)
 
                     const price = toNumber(getField(row, ["Price", "price"]))
-                    const peakCCU = toNumber(getField(row, ["Peak CCU", "peak_ccu", "PeakCCU"]))
+                    const peakCCU = toNumber(
+                        getField(row, ["Peak CCU", "peak_ccu", "PeakCCU"])
+                    )
                     const year = parseYear(
                         getField(row, ["Release date", "release_date", "Release Date"])
                     )
@@ -184,7 +239,41 @@ export function useGamesData() {
                             : NaN
 
                     const gameName = getField(row, ["Name", "name"], "Unknown")
-                    const appId = getField(row, ["AppID", "appid", "App Id"], String(index))
+                    const appId = getField(
+                        row,
+                        ["AppID", "appid", "App Id", "id"],
+                        String(index)
+                    )
+
+                    const rawGenres = getField(row, ["Genres", "genres"], "")
+                    const rawTags = getField(
+                        row,
+                        ["Tags", "tags", "steamspy_tags", "popular_tags"],
+                        ""
+                    )
+                    const rawScreenshots = getField(row, ["Screenshots", "screenshots"], "")
+                    const rawMovies = getField(row, ["Movies", "movies"], "")
+                    const rawCategories = getField(row, ["Categories", "categories"], "")
+
+                    const genres = parseMaybeArray(rawGenres)
+                    const tags = parseMaybeArray(rawTags)
+                    const screenshots = parseMaybeArray(rawScreenshots)
+                    const movies = parseMaybeArray(rawMovies)
+                    const categories = parseMaybeArray(rawCategories)
+
+                    const ownersParsed = parseOwnersRange(
+                        getField(row, ["Estimated owners", "estimated_owners"], "0 - 0")
+                    )
+
+                    if (index < 5) {
+                        console.log("Sample row:", {
+                            name: gameName,
+                            rawTags,
+                            parsedTags: tags,
+                            rawGenres,
+                            parsedGenres: genres,
+                        })
+                    }
 
                     if (appId === "578080" || gameName === "PUBG: BATTLEGROUNDS") {
                         console.log("PUBG JSON ROW:", row)
@@ -192,14 +281,12 @@ export function useGamesData() {
                         console.log("PUBG rawNegative:", rawNegative)
                         console.log("PUBG parsed positive:", positive)
                         console.log("PUBG parsed negative:", negative)
+                        console.log("PUBG rawTags:", rawTags)
+                        console.log("PUBG parsedTags:", tags)
                     }
 
-                    const ownersParsed = parseOwnersRange(
-                        getField(row, ["Estimated owners", "estimated_owners"], "0 - 0")
-                    )
-
                     return {
-                        id: appId,
+                        id: String(appId),
                         name: gameName,
                         releaseDate: getField(
                             row,
@@ -223,8 +310,8 @@ export function useGamesData() {
                         totalReviews,
                         posRatio,
 
-                        genres: parseMaybeArray(getField(row, ["Genres", "genres"], "")),
-                        tags: parseMaybeArray(getField(row, ["Tags", "tags"], "")),
+                        genres,
+                        tags,
 
                         requiredAge: toNumber(getField(row, ["Required age", "required_age"])),
                         discountDLCCount: toNumber(
@@ -259,19 +346,15 @@ export function useGamesData() {
 
                         developers: getField(row, ["Developers", "developers"], ""),
                         publishers: getField(row, ["Publishers", "publishers"], ""),
-                        categories: parseMaybeArray(
-                            getField(row, ["Categories", "categories"], "")
-                        ),
+                        categories,
 
                         windows: parseBoolean(getField(row, ["Windows", "windows"], false)),
                         mac: parseBoolean(getField(row, ["Mac", "mac"], false)),
                         linux: parseBoolean(getField(row, ["Linux", "linux"], false)),
 
                         headerImage: getField(row, ["Header image", "header_image"], ""),
-                        screenshots: parseMaybeArray(
-                            getField(row, ["Screenshots", "screenshots"], "")
-                        ),
-                        movies: parseMaybeArray(getField(row, ["Movies", "movies"], "")),
+                        screenshots,
+                        movies,
                         website: getField(row, ["Website", "website"], ""),
                         supportUrl: getField(row, ["Support url", "support_url"], ""),
                         supportEmail: getField(row, ["Support email", "support_email"], ""),
@@ -292,6 +375,7 @@ export function useGamesData() {
                         posRatioPct: Number.isFinite(d.posRatio)
                             ? `${(d.posRatio * 100).toFixed(1)}%`
                             : "N/A",
+                        tags: d.tags,
                     }))
                 )
 
@@ -320,8 +404,13 @@ export function useGamesData() {
         let maxYear = -Infinity
 
         for (const d of raw) {
-            d.genres.forEach(g => genreSet.add(g))
-            d.tags.forEach(t => tagSet.add(t))
+            ;(d.genres || []).forEach(g => {
+                if (g) genreSet.add(g)
+            })
+
+            ;(d.tags || []).forEach(t => {
+                if (t) tagSet.add(t)
+            })
 
             if (Number.isFinite(d.year)) {
                 minYear = Math.min(minYear, d.year)
@@ -329,7 +418,7 @@ export function useGamesData() {
             }
         }
 
-        return {
+        const result = {
             genres: Array.from(genreSet).sort((a, b) => a.localeCompare(b)),
             tags: Array.from(tagSet).sort((a, b) => a.localeCompare(b)),
             yearExtent: [
@@ -337,6 +426,10 @@ export function useGamesData() {
                 Number.isFinite(maxYear) ? maxYear : new Date().getFullYear(),
             ],
         }
+
+        console.log("dictionaries:", result)
+
+        return result
     }, [raw])
 
     return {
