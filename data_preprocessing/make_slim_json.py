@@ -1,7 +1,7 @@
 import json
 
 INPUT_FILE = "games.json"
-OUTPUT_FILE = "../public/games_slim.json"
+OUTPUT_FILE = "../frontend/public"
 
 KEEP_FIELDS = [
     "name",
