@@ -7,10 +7,16 @@ export default function ScatterPricePopularity({ data, metric }) {
     const points = useMemo(() => {
         return data
             .map(d => {
-                const y = metric === "owners" ? d.ownersMid : d.peakCCU
+                const y = getMetricValue(d, metric)
                 return { ...d, _y: y }
             })
-            .filter(d => Number.isFinite(d.price) && Number.isFinite(d._y) && d._y > 0)
+            .filter(d => Number.isFinite(d.price) && Number.isFinite(d._y))
+            .filter(d => {
+                if (metric === "posRatio") {
+                    return d._y >= 0 && d._y <= 1
+                }
+                return d._y > 0
+            })
     }, [data, metric])
 
     useEffect(() => {
@@ -77,20 +83,31 @@ export default function ScatterPricePopularity({ data, metric }) {
             .nice()
             .range([0, innerW])
 
-        const yMin = d3.min(points, d => d._y) ?? 1
-        const yMax = d3.max(points, d => d._y) ?? 10
+        const yMin = d3.min(points, d => d._y) ?? 0
+        const yMax = d3.max(points, d => d._y) ?? 1
 
-        const y = d3.scaleLog()
-            .domain([Math.max(1, yMin), Math.max(10, yMax)])
-            .nice()
-            .range([innerH, 0])
+        const useLogScale = metric !== "posRatio"
+
+        const y = useLogScale
+            ? d3.scaleLog()
+                .domain([Math.max(1, yMin), Math.max(10, yMax)])
+                .nice()
+                .range([innerH, 0])
+            : d3.scaleLinear()
+                .domain([0, yMax])
+                .nice()
+                .range([innerH, 0])
 
         g.append("g")
             .attr("transform", `translate(0,${innerH})`)
             .call(d3.axisBottom(x))
 
         g.append("g")
-            .call(d3.axisLeft(y).ticks(6, "~s"))
+            .call(
+                metric === "posRatio"
+                    ? d3.axisLeft(y).tickFormat(d => `${Math.round(d * 100)}%`)
+                    : d3.axisLeft(y).ticks(6, "~s")
+            )
 
         g.append("text")
             .attr("x", innerW / 2)
@@ -105,7 +122,7 @@ export default function ScatterPricePopularity({ data, metric }) {
             .attr("y", -50)
             .attr("text-anchor", "middle")
             .attr("font-size", 12)
-            .text(metric === "owners" ? "Estimated owners (log)" : "Peak CCU (log)")
+            .text(useLogScale ? `${metricLabel(metric)} (log)` : metricLabel(metric))
 
         g.append("g")
             .selectAll("circle")
@@ -122,7 +139,7 @@ export default function ScatterPricePopularity({ data, metric }) {
                     .html(`
                         <div style="font-weight:600; margin-bottom:4px;">${escapeHtml(d.name || "Unknown")}</div>
                         <div>Price: ${Number.isFinite(d.price) ? `$${d.price.toFixed(2)}` : "N/A"}</div>
-                        <div>${metric === "owners" ? "Estimated owners" : "Peak CCU"}: ${formatSI(d._y)}</div>
+                        <div>${metricLabel(metric)}: ${formatMetricValue(d._y, metric)}</div>
                         <div>Total reviews: ${Number.isFinite(d.totalReviews) ? formatSI(d.totalReviews) : "N/A"}</div>
                         <div>Positive ratio: ${Number.isFinite(d.posRatio) ? `${(d.posRatio * 100).toFixed(1)}%` : "N/A"}</div>
                     `)
@@ -147,10 +164,58 @@ export default function ScatterPricePopularity({ data, metric }) {
                 width: "100%",
                 height: "520px",
                 border: "1px solid #ddd",
-                borderRadius: 12
+                borderRadius: 12,
             }}
         />
     )
+}
+
+function getMetricValue(d, metric) {
+    switch (metric) {
+        case "owners":
+            return d.ownersMid
+        case "peakCCU":
+            return d.peakCCU
+        case "posRatio":
+            return d.posRatio
+        case "totalReviews":
+            return d.totalReviews
+        case "recommendations":
+            return d.recommendations
+        case "avgPlaytimeForever":
+            return d.avgPlaytimeForever
+        default:
+            return d.ownersMid
+    }
+}
+
+function metricLabel(metric) {
+    switch (metric) {
+        case "owners":
+            return "Estimated Owners"
+        case "peakCCU":
+            return "Peak CCU"
+        case "posRatio":
+            return "Positive Review %"
+        case "totalReviews":
+            return "Total Reviews"
+        case "recommendations":
+            return "Recommendations"
+        case "avgPlaytimeForever":
+            return "Avg Playtime"
+        default:
+            return "Value"
+    }
+}
+
+function formatMetricValue(x, metric) {
+    if (!Number.isFinite(x)) return "N/A"
+
+    if (metric === "posRatio") {
+        return `${(x * 100).toFixed(1)}%`
+    }
+
+    return formatSI(x)
 }
 
 function formatSI(x) {

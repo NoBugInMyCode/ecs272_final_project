@@ -6,9 +6,16 @@ export default function GenrePopularityBar({ data, metric }) {
 
     const genreData = useMemo(() => {
         const expanded = data.flatMap(d => {
-            const value = metric === "owners" ? d.ownersMid : d.peakCCU
+            const value = getMetricValue(d, metric)
+
             if (!Array.isArray(d.genres) || d.genres.length === 0) return []
-            if (!Number.isFinite(value) || value <= 0) return []
+            if (!Number.isFinite(value)) return []
+
+            if (metric === "posRatio") {
+                if (value < 0 || value > 1) return []
+            } else {
+                if (value <= 0) return []
+            }
 
             return d.genres.map(genre => ({
                 genre,
@@ -110,14 +117,18 @@ export default function GenrePopularityBar({ data, metric }) {
 
         g.append("g")
             .attr("transform", `translate(0,${innerH})`)
-            .call(d3.axisBottom(x).ticks(6, "~s"))
+            .call(
+                metric === "posRatio"
+                    ? d3.axisBottom(x).tickFormat(d => `${Math.round(d * 100)}%`)
+                    : d3.axisBottom(x).ticks(6, "~s")
+            )
 
         g.append("text")
             .attr("x", innerW / 2)
             .attr("y", innerH + 34)
             .attr("text-anchor", "middle")
             .attr("font-size", 12)
-            .text(metric === "owners" ? "Average Estimated Owners" : "Average Peak CCU")
+            .text(`Average ${metricLabel(metric)}`)
 
         g.append("g")
             .selectAll("rect")
@@ -134,7 +145,7 @@ export default function GenrePopularityBar({ data, metric }) {
                     .style("display", "block")
                     .html(`
                         <div style="font-weight:600; margin-bottom:4px;">${escapeHtml(d.genre)}</div>
-                        <div>Average ${metric === "owners" ? "Estimated Owners" : "Peak CCU"}: ${formatSI(d.avg)}</div>
+                        <div>Average ${metricLabel(metric)}: ${formatMetricValue(d.avg, metric)}</div>
                         <div>Games counted: ${d.count.toLocaleString()}</div>
                     `)
             })
@@ -164,7 +175,51 @@ export default function GenrePopularityBar({ data, metric }) {
     )
 }
 
-function formatSI(x) {
+function getMetricValue(d, metric) {
+    switch (metric) {
+        case "owners":
+            return d.ownersMid
+        case "peakCCU":
+            return d.peakCCU
+        case "posRatio":
+            return d.posRatio
+        case "totalReviews":
+            return d.totalReviews
+        case "recommendations":
+            return d.recommendations
+        case "avgPlaytimeForever":
+            return d.avgPlaytimeForever
+        default:
+            return d.ownersMid
+    }
+}
+
+function metricLabel(metric) {
+    switch (metric) {
+        case "owners":
+            return "Estimated Owners"
+        case "peakCCU":
+            return "Peak CCU"
+        case "posRatio":
+            return "Positive Review %"
+        case "totalReviews":
+            return "Total Reviews"
+        case "recommendations":
+            return "Recommendations"
+        case "avgPlaytimeForever":
+            return "Avg Playtime Forever"
+        default:
+            return "Value"
+    }
+}
+
+function formatMetricValue(x, metric) {
+    if (!Number.isFinite(x)) return "N/A"
+
+    if (metric === "posRatio") {
+        return `${(x * 100).toFixed(1)}%`
+    }
+
     return d3.format("~s")(x)
 }
 

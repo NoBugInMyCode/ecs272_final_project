@@ -7,13 +7,19 @@ export default function ReleaseYearTrend({ data, metric }) {
     const yearlyData = useMemo(() => {
         const valid = data
             .map(d => {
-                const value = metric === "owners" ? d.ownersMid : d.peakCCU
+                const value = getMetricValue(d, metric)
                 return {
                     year: d.year,
                     value,
                 }
             })
-            .filter(d => Number.isFinite(d.year) && Number.isFinite(d.value) && d.value > 0)
+            .filter(d => Number.isFinite(d.year) && Number.isFinite(d.value))
+            .filter(d => {
+                if (metric === "posRatio") {
+                    return d.value >= 0 && d.value <= 1
+                }
+                return d.value > 0
+            })
 
         const grouped = d3.rollups(
             valid,
@@ -107,7 +113,11 @@ export default function ReleaseYearTrend({ data, metric }) {
             .call(d3.axisBottom(x).tickFormat(d3.format("d")))
 
         g.append("g")
-            .call(d3.axisLeft(y).ticks(6, "~s"))
+            .call(
+                metric === "posRatio"
+                    ? d3.axisLeft(y).tickFormat(d => `${Math.round(d * 100)}%`)
+                    : d3.axisLeft(y).ticks(6, "~s")
+            )
 
         g.append("text")
             .attr("x", innerW / 2)
@@ -122,7 +132,7 @@ export default function ReleaseYearTrend({ data, metric }) {
             .attr("y", -50)
             .attr("text-anchor", "middle")
             .attr("font-size", 12)
-            .text(metric === "owners" ? "Average Estimated Owners" : "Average Peak CCU")
+            .text(`Average ${metricLabel(metric)}`)
 
         const line = d3.line()
             .x(d => x(d.year))
@@ -149,7 +159,7 @@ export default function ReleaseYearTrend({ data, metric }) {
                     .style("display", "block")
                     .html(`
                         <div style="font-weight:600; margin-bottom:4px;">${d.year}</div>
-                        <div>Average ${metric === "owners" ? "Estimated Owners" : "Peak CCU"}: ${formatSI(d.avg)}</div>
+                        <div>Average ${metricLabel(metric)}: ${formatMetricValue(d.avg, metric)}</div>
                         <div>Games: ${d.count.toLocaleString()}</div>
                     `)
             })
@@ -178,6 +188,50 @@ export default function ReleaseYearTrend({ data, metric }) {
     )
 }
 
-function formatSI(x) {
+function getMetricValue(d, metric) {
+    switch (metric) {
+        case "owners":
+            return d.ownersMid
+        case "peakCCU":
+            return d.peakCCU
+        case "posRatio":
+            return d.posRatio
+        case "totalReviews":
+            return d.totalReviews
+        case "recommendations":
+            return d.recommendations
+        case "avgPlaytimeForever":
+            return d.avgPlaytimeForever
+        default:
+            return d.ownersMid
+    }
+}
+
+function metricLabel(metric) {
+    switch (metric) {
+        case "owners":
+            return "Estimated Owners"
+        case "peakCCU":
+            return "Peak CCU"
+        case "posRatio":
+            return "Positive Review %"
+        case "totalReviews":
+            return "Total Reviews"
+        case "recommendations":
+            return "Recommendations"
+        case "avgPlaytimeForever":
+            return "Avg Playtime Forever"
+        default:
+            return "Value"
+    }
+}
+
+function formatMetricValue(x, metric) {
+    if (!Number.isFinite(x)) return "N/A"
+
+    if (metric === "posRatio") {
+        return `${(x * 100).toFixed(1)}%`
+    }
+
     return d3.format("~s")(x)
 }

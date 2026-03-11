@@ -2,8 +2,7 @@ import { useMemo } from "react"
 import * as d3 from "d3"
 
 export default function GameTable({ data, metric }) {
-    const key = metric === "owners" ? "ownersMid" : "peakCCU"
-    const keyLabel = metric === "owners" ? "Estimated owners" : "Peak CCU"
+    const keyLabel = metricLabel(metric)
 
     const top = useMemo(() => {
         console.log(
@@ -18,15 +17,24 @@ export default function GameTable({ data, metric }) {
                 totalReviews: d.totalReviews,
                 positive: d.positive,
                 negative: d.negative,
-                sortKey: d[key],
+                sortValue: getMetricValue(d, metric),
             }))
         )
 
         return [...data]
-            .filter(d => Number.isFinite(d[key]) && d[key] > 0)
-            .sort((a, b) => b[key] - a[key])
+            .filter(d => {
+                const value = getMetricValue(d, metric)
+                if (!Number.isFinite(value)) return false
+
+                if (metric === "posRatio") {
+                    return value >= 0 && value <= 1
+                }
+
+                return value > 0
+            })
+            .sort((a, b) => getMetricValue(b, metric) - getMetricValue(a, metric))
             .slice(0, 20)
-    }, [data, key])
+    }, [data, metric])
 
     return (
         <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12 }}>
@@ -48,37 +56,41 @@ export default function GameTable({ data, metric }) {
                     </thead>
 
                     <tbody>
-                    {top.map(d => (
-                        <tr key={d.id}>
-                            <td style={tdStyle}>{d.name || "Unknown"}</td>
+                    {top.map(d => {
+                        const value = getMetricValue(d, metric)
 
-                            <td style={tdStyle}>
-                                {Number.isFinite(d.price)
-                                    ? `$${d.price.toFixed(2)}`
-                                    : "N/A"}
-                            </td>
+                        return (
+                            <tr key={d.id}>
+                                <td style={tdStyle}>{d.name || "Unknown"}</td>
 
-                            <td style={tdStyle}>
-                                {Number.isFinite(d[key]) ? formatSI(d[key]) : "N/A"}
-                            </td>
+                                <td style={tdStyle}>
+                                    {Number.isFinite(d.price)
+                                        ? `$${d.price.toFixed(2)}`
+                                        : "N/A"}
+                                </td>
 
-                            <td style={tdStyle}>
-                                {Number.isFinite(d.posRatio)
-                                    ? `${(d.posRatio * 100).toFixed(1)}%`
-                                    : "N/A"}
-                            </td>
+                                <td style={tdStyle}>
+                                    {formatMetricValue(value, metric)}
+                                </td>
 
-                            <td style={tdStyle}>
-                                {Number.isFinite(d.totalReviews)
-                                    ? formatSI(d.totalReviews)
-                                    : "N/A"}
-                            </td>
+                                <td style={tdStyle}>
+                                    {Number.isFinite(d.posRatio)
+                                        ? `${(d.posRatio * 100).toFixed(1)}%`
+                                        : "N/A"}
+                                </td>
 
-                            <td style={tdStyle}>
-                                {Number.isFinite(d.year) ? d.year : "N/A"}
-                            </td>
-                        </tr>
-                    ))}
+                                <td style={tdStyle}>
+                                    {Number.isFinite(d.totalReviews)
+                                        ? formatSI(d.totalReviews)
+                                        : "N/A"}
+                                </td>
+
+                                <td style={tdStyle}>
+                                    {Number.isFinite(d.year) ? d.year : "N/A"}
+                                </td>
+                            </tr>
+                        )
+                    })}
 
                     {top.length === 0 && (
                         <tr>
@@ -99,6 +111,54 @@ export default function GameTable({ data, metric }) {
             </div>
         </div>
     )
+}
+
+function getMetricValue(d, metric) {
+    switch (metric) {
+        case "owners":
+            return d.ownersMid
+        case "peakCCU":
+            return d.peakCCU
+        case "posRatio":
+            return d.posRatio
+        case "totalReviews":
+            return d.totalReviews
+        case "recommendations":
+            return d.recommendations
+        case "avgPlaytimeForever":
+            return d.avgPlaytimeForever
+        default:
+            return d.ownersMid
+    }
+}
+
+function metricLabel(metric) {
+    switch (metric) {
+        case "owners":
+            return "Estimated Owners"
+        case "peakCCU":
+            return "Peak CCU"
+        case "posRatio":
+            return "Positive Review %"
+        case "totalReviews":
+            return "Total Reviews"
+        case "recommendations":
+            return "Recommendations"
+        case "avgPlaytimeForever":
+            return "Avg Playtime Forever"
+        default:
+            return "Value"
+    }
+}
+
+function formatMetricValue(x, metric) {
+    if (!Number.isFinite(x)) return "N/A"
+
+    if (metric === "posRatio") {
+        return `${(x * 100).toFixed(1)}%`
+    }
+
+    return formatSI(x)
 }
 
 function formatSI(x) {

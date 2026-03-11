@@ -34,18 +34,71 @@ export default function ControlsPanel({
     }
 
     return (
-        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 12, height: "fit-content" }}>
+        <div
+            style={{
+                border: "1px solid #ddd",
+                borderRadius: 12,
+                padding: 12,
+                height: "fit-content"
+            }}
+        >
             <h3 style={{ marginTop: 0 }}>Filters</h3>
 
             <div style={{ marginBottom: 12 }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>Popularity metric</div>
+
                 <label style={{ display: "block" }}>
-                    <input type="radio" checked={metric === "owners"} onChange={() => setMetric("owners")} />
+                    <input
+                        type="radio"
+                        checked={metric === "owners"}
+                        onChange={() => setMetric("owners")}
+                    />
                     {" "}Estimated owners
                 </label>
+
                 <label style={{ display: "block" }}>
-                    <input type="radio" checked={metric === "peakCCU"} onChange={() => setMetric("peakCCU")} />
+                    <input
+                        type="radio"
+                        checked={metric === "peakCCU"}
+                        onChange={() => setMetric("peakCCU")}
+                    />
                     {" "}Peak CCU
+                </label>
+
+                <label style={{ display: "block" }}>
+                    <input
+                        type="radio"
+                        checked={metric === "posRatio"}
+                        onChange={() => setMetric("posRatio")}
+                    />
+                    {" "}Positive Review %
+                </label>
+
+                <label style={{ display: "block" }}>
+                    <input
+                        type="radio"
+                        checked={metric === "totalReviews"}
+                        onChange={() => setMetric("totalReviews")}
+                    />
+                    {" "}Total Reviews
+                </label>
+
+                <label style={{ display: "block" }}>
+                    <input
+                        type="radio"
+                        checked={metric === "recommendations"}
+                        onChange={() => setMetric("recommendations")}
+                    />
+                    {" "}Recommendations
+                </label>
+
+                <label style={{ display: "block" }}>
+                    <input
+                        type="radio"
+                        checked={metric === "avgPlaytimeForever"}
+                        onChange={() => setMetric("avgPlaytimeForever")}
+                    />
+                    {" "}Avg Playtime Forever
                 </label>
             </div>
 
@@ -61,12 +114,14 @@ export default function ControlsPanel({
                         {" "}{b}
                     </label>
                 ))}
+
                 <button
                     style={{ marginTop: 6 }}
                     onClick={() => setSelectedPriceBands(new Set(ALL_BANDS))}
                 >
                     Select all
                 </button>
+
                 <button
                     style={{ marginLeft: 8, marginTop: 6 }}
                     onClick={() => setSelectedPriceBands(new Set())}
@@ -113,7 +168,15 @@ export default function ControlsPanel({
                     onChange={e => setGenreQuery(e.target.value)}
                     style={{ width: "100%", marginBottom: 6 }}
                 />
-                <div style={{ maxHeight: 160, overflow: "auto", border: "1px solid #eee", padding: 6, borderRadius: 8 }}>
+                <div
+                    style={{
+                        maxHeight: 160,
+                        overflow: "auto",
+                        border: "1px solid #eee",
+                        padding: 6,
+                        borderRadius: 8
+                    }}
+                >
                     {filteredGenres.map(g => (
                         <label key={g} style={{ display: "block" }}>
                             <input
@@ -125,7 +188,12 @@ export default function ControlsPanel({
                         </label>
                     ))}
                 </div>
-                <button style={{ marginTop: 6 }} onClick={() => setSelectedGenres(new Set())}>Clear genres</button>
+                <button
+                    style={{ marginTop: 6 }}
+                    onClick={() => setSelectedGenres(new Set())}
+                >
+                    Clear genres
+                </button>
             </div>
 
             <div>
@@ -136,7 +204,15 @@ export default function ControlsPanel({
                     onChange={e => setTagQuery(e.target.value)}
                     style={{ width: "100%", marginBottom: 6 }}
                 />
-                <div style={{ maxHeight: 160, overflow: "auto", border: "1px solid #eee", padding: 6, borderRadius: 8 }}>
+                <div
+                    style={{
+                        maxHeight: 160,
+                        overflow: "auto",
+                        border: "1px solid #eee",
+                        padding: 6,
+                        borderRadius: 8
+                    }}
+                >
                     {filteredTags.map(t => (
                         <label key={t} style={{ display: "block" }}>
                             <input
@@ -148,7 +224,12 @@ export default function ControlsPanel({
                         </label>
                     ))}
                 </div>
-                <button style={{ marginTop: 6 }} onClick={() => setSelectedTags(new Set())}>Clear tags</button>
+                <button
+                    style={{ marginTop: 6 }}
+                    onClick={() => setSelectedTags(new Set())}
+                >
+                    Clear tags
+                </button>
             </div>
         </div>
     )
