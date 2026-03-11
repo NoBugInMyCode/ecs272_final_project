@@ -13,7 +13,7 @@ node_modules
 
 # data
 /public/games_slim.json
-/data_preprocessing/games.json
+/data_processing/raw/
 games.csv
 games.json
 
@@ -27,3 +27,6 @@ games.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+*.csv
+.idea
