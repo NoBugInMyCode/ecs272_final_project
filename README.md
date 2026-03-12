@@ -1,10 +1,7 @@
 # ECS272 Final Project
-Shaokang Xie, Jiazhi Sun
+- By Shaokang Xie, Jiazhi Sun
 
-
-# Data Processing (ecs272_final_project)
-
-This folder contains scripts for downloading and processing the Steam games dataset.
+- This folder contains scripts for downloading and processing the Steam games dataset.
 
 ## Instructions
 0. Install the required python libraries:
